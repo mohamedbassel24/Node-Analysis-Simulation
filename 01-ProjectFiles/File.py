@@ -44,7 +44,7 @@ def ParsingFile(FileName):
 
 ComponentList = []
 TimeStamp = 0
-ComponentList, TimeStamp = ParsingFile("1.txt")
+ComponentList, TimeStamp = ParsingFile("4.txt")
 n = 0  # representing Number of Nodes
 m = 0  # representing Number of ID voltage Source
 for mComponent in ComponentList:
@@ -56,6 +56,12 @@ G = np.zeros((n, n))  # for A resistance
 B = np.zeros((n, m))  # connection of the voltage sources
 C = np.zeros((m, n))  # Transpose of B
 D = np.zeros((m, m))  # is a zero matrix
+V = np.zeros((n,1))
+J = np.zeros(((m,1)))
+I = np.zeros((n,1))
+E = np.zeros(((m,1)))
+
+
 
 # print(G)
 # print(B)
@@ -91,10 +97,10 @@ def initmatg(matrixG):
         if(component.Type == "R"):
             node1 = int(component.Node1[1])
             node2 = int(component.Node2[1])
-            matrixG[node1][node1]+=1/int(component.Value)
-            matrixG[node2][node2]+=1/int(component.Value)
-            matrixG[node1][node2]=-1/int(component.Value)
-            matrixG[node2][node1]=-1/int(component.Value)
+            matrixG[node1][node1]+=1/float(component.Value)
+            matrixG[node2][node2]+=1/float(component.Value)
+            matrixG[node1][node2]=-1/float(component.Value)
+            matrixG[node2][node1]=-1/float(component.Value)
 
 
 # initmatg(G)
@@ -103,12 +109,31 @@ def initmatg(matrixG):
 def initmatc():
     return  B.transpose()
 
+def initmate(matrixe):
+    for component in ComponentList:
+        if(component.Type == "Vsrc"):
+            volt=int(component.Value)
+            for index,node in enumerate(matrixe):
+                matrixe[index][0]=volt
+
+def initmati(matrixi):
+    for component in ComponentList:
+        if component.Type == "Isrc":
+            node1 = int(component.Node1[1])
+            node2 = int(component.Node2[1])
+            if(node1 !=0):
+                matrixi[node1][0]=float(component.Value)
+            if(node2 !=0):
+                matrixi[node2][0]=float(component.Value)
+
 initmatg(G)
 initmatb(B)
 C =initmatc()
-
+initmate(E)
+initmati(I)
 print(G)
 print(B)
 print(C)
 print(D)
-
+print(E)
+print(I)
