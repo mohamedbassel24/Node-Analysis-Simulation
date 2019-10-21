@@ -72,7 +72,7 @@ def initmatb(matrixb):
     for component in ComponentList:
         if component.Type == "Vsrc":
             for index, node in enumerate(matrixb):
-                print(index)
+                #print(index)
                 pos=int(component.Node1[1])
                 neg=int(component.Node2[1])
                 if index == pos:
@@ -97,5 +97,18 @@ def initmatg(matrixG):
             matrixG[node2][node1]=-1/int(component.Value)
 
 
+# initmatg(G)
+# print(G)
+
+def initmatc():
+    return  B.transpose()
+
 initmatg(G)
+initmatb(B)
+C =initmatc()
+
 print(G)
+print(B)
+print(C)
+print(D)
+
