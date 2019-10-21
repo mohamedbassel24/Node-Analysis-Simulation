@@ -83,5 +83,19 @@ def initmatb(matrixb):
                     matrixb[index][0] = 0
 
 
-initmatb(B)
-print(B)
+# initmatb(B)
+# print(B)
+
+def initmatg(matrixG):
+    for component in ComponentList:
+        if(component.Type == "R"):
+            node1 = int(component.Node1[1])
+            node2 = int(component.Node2[1])
+            matrixG[node1][node1]+=1/int(component.Value)
+            matrixG[node2][node2]+=1/int(component.Value)
+            matrixG[node1][node2]=-1/int(component.Value)
+            matrixG[node2][node1]=-1/int(component.Value)
+
+
+initmatg(G)
+print(G)
