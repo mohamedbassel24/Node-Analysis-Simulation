@@ -58,8 +58,8 @@ C = np.zeros((m, n))  # Transpose of B
 D = np.zeros((m, m))  # is a zero matrix
 I = np.zeros((n,1))
 E = np.zeros(((m,1)))
-A= np.zeros((m+n,m+n))
-
+A = np.zeros((m+n,m+n))
+Z = np.zeros((n+m,1))
 
 # print(G)
 # print(B)
@@ -140,7 +140,20 @@ def initmata(matrixa):
         for i in range(m):
             for j in range(m):
                 matrixa[i+n][j+n]=D[i][j]
+def initmatz(matrixz):
+    for i in range(n+m):
+        iteri=0
+        itere=0
+        if i<n:
+            matrixz[i][0]=I[iteri][0]
+            iteri+=1
+        else:
+            matrixz[i][0]=E[itere][0]
+            itere+=1
 
+def calculatex():
+    a=np.linalg.inv(A)
+    return np.matmul(a,Z)
 
 initmatg(G)
 initmatb(B)
@@ -148,10 +161,14 @@ C =initmatc()
 initmate(E)
 initmati(I)
 initmata(A)
-print(G)
-print(B)
-print(C)
-print(D)
-print(E)
-print(I)
-print(A)
+initmatz(Z)
+X=calculatex()
+# print(G)
+# print(B)
+# print(C)
+# print(D)
+# print(E)
+# print(I)
+# print(A)
+#print(Z)
+print(X)
