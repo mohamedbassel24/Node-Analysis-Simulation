@@ -44,7 +44,7 @@ def ParsingFile(FileName):
 
 ComponentList = []
 TimeStamp = 0
-ComponentList, TimeStamp = ParsingFile("4.txt")
+ComponentList, TimeStamp = ParsingFile("1.txt")
 n = 0  # representing Number of Nodes
 m = 0  # representing Number of ID voltage Source
 for mComponent in ComponentList:
@@ -56,11 +56,9 @@ G = np.zeros((n, n))  # for A resistance
 B = np.zeros((n, m))  # connection of the voltage sources
 C = np.zeros((m, n))  # Transpose of B
 D = np.zeros((m, m))  # is a zero matrix
-V = np.zeros((n,1))
-J = np.zeros(((m,1)))
 I = np.zeros((n,1))
 E = np.zeros(((m,1)))
-
+A= np.zeros((m+n,m+n))
 
 
 # print(G)
@@ -126,14 +124,34 @@ def initmati(matrixi):
             if(node2 !=0):
                 matrixi[node2][0]=float(component.Value)
 
+def initmata(matrixa):
+        for i in range(n):
+           for j in range(n):
+               matrixa[i][j]=G[i][j]
+
+        for i in range(n):
+            for j in range(m):
+                matrixa[i][j+n]=B[i][j]
+
+        for i in range(m):
+            for j in range(n):
+                matrixa[i+n][j]=C[i][j]
+
+        for i in range(m):
+            for j in range(m):
+                matrixa[i+n][j+n]=D[i][j]
+
+
 initmatg(G)
 initmatb(B)
 C =initmatc()
 initmate(E)
 initmati(I)
+initmata(A)
 print(G)
 print(B)
 print(C)
 print(D)
 print(E)
 print(I)
+print(A)
