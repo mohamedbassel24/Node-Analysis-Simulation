@@ -152,8 +152,11 @@ def initmatz(matrixz):
             itere+=1
 
 def calculatex():
-    a=np.linalg.inv(A)
-    return np.matmul(a,Z)
+    print(A)
+    print(np.linalg.det(A))
+    # a=np.linalg.inv(np.matrix(A))
+    # print(a)
+    #return np.matmul(a,Z)
 
 initmatg(G)
 initmatb(B)
@@ -162,7 +165,7 @@ initmate(E)
 initmati(I)
 initmata(A)
 initmatz(Z)
-X=calculatex()
+calculatex()
 # print(G)
 # print(B)
 # print(C)
@@ -171,4 +174,4 @@ X=calculatex()
 # print(I)
 # print(A)
 #print(Z)
-print(X)
+#print(X)
