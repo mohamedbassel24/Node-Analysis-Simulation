@@ -1,7 +1,7 @@
 import numpy as np
 import math
 
-from click._compat import raw_input
+#from click._compat import raw_input
 
 
 def numbers_to_strings(argument):
@@ -120,7 +120,7 @@ ComponentList = []
 TimeStamp = 0
 FileNumber=0
 while 1:
-    g = raw_input("Enter File# : ")
+    g = input("Enter File# : ")
     if 4>= int(g) >0:
         FileNumber=g
         break
