@@ -1,6 +1,8 @@
 import numpy as np
 import math
 
+from click._compat import raw_input
+
 
 def numbers_to_strings(argument):
     switcher = {
@@ -20,158 +22,151 @@ class Component:
 
 
 def ParsingFile(FileName):
-    f = open(FileName, "r")
+    f = open(FileName+".txt", "r")
     if f.mode == "r":  # check if file is open
         FileContents = f.readlines()  # read file line by line
-    # Removing \n at each line
-   # print(FileContents)
-   # print(np.shape(FileContents))
     for i in range(np.shape(FileContents)[0] - 1):  # loop for the lines before last
-       # print(len(FileContents[i]))
-       # print(FileContents[i])
         FileContents[i] = FileContents[i][0:len(FileContents[i]) - 1]
-    print(np.shape(FileContents))
-    print(FileContents)
-    TimeStamp = FileContents[0]
+    mTimeStamp = FileContents[0]
     Dummy = FileContents[1]
     FileContents = FileContents[2:]
-    ComponentList = []
+    nComponentList = []
     for i in range(np.shape(FileContents)[0]):
         Line = FileContents[i].split()
-        ComponentList.append(Component(Line[0], Line[1], Line[2], Line[3], Line[4]))
-    return (ComponentList, TimeStamp)
+        nComponentList.append(Component(Line[0], Line[1], Line[2], Line[3], Line[4]))
+    return nComponentList, mTimeStamp
+
+
+def initmatg(matrixG, ComponentList):
+    for component in ComponentList:
+        if component.Type == "R":
+            node1 = int(component.Node1[1]) - 1
+            node2 = int(component.Node2[1]) - 1
+            if node1 < 0 or node2 < 0:  # for Ground Logic
+                mMax = max(node1, node2)
+                node1 = node2 = mMax
+                matrixG[node1][node1] += 1 / float(component.Value)
+            else:
+                matrixG[node1][node1] += 1 / float(component.Value)
+                matrixG[node2][node2] += 1 / float(component.Value)
+                matrixG[node1][node2] = -1 / float(component.Value)  # leh msh += heya kman
+                matrixG[node2][node1] = -1 / float(component.Value)
+
+
+def initmatb(matrixb, ComponentList):
+    VolCounter = 0
+    for component in ComponentList:
+        if component.Type == "Vsrc":
+            #       for index, node in enumerate(matrixb):
+            # print(index)
+            pos = int(component.Node1[1]) - 1
+            neg = int(component.Node2[1]) - 1
+            if pos >= 0:
+                matrixb[pos][VolCounter] = 1
+            if neg >= 0:
+                matrixb[neg][VolCounter] = -1
+            VolCounter = VolCounter + 1
+
+
+def initmatc(B):
+    return B.transpose()
+
+
+def IniMatA(G, B, C, D):
+    UpperA = np.hstack((G, B))
+    DownA = np.hstack((C, D))
+    return np.vstack((UpperA, DownA))
+
+
+def initmate(matrixe, ComponentList):
+    Index = 0
+    for component in ComponentList:
+        if component.Type == "Vsrc":
+            volt = int(component.Value)
+
+            # for index, node in enumerate(matrixe):
+            matrixe[Index][0] = volt
+            Index = Index + 1
+
+
+def initmati(matrixi, ComponentList):
+    for component in ComponentList:
+        if component.Type == "Isrc":
+            node1 = int(component.Node1[1]) - 1
+            node2 = int(component.Node2[1]) - 1
+            if node1 != 0:
+                matrixi[node1][0] = float(component.Value)
+            if node2 != 0:
+                matrixi[node2][0] = float(component.Value)
+
+
+def WriteToFile(FileName, Step, Values, n, m):
+    f = open("RCircuit " + FileName + " output.txt", "w+")
+    for i in range(n):
+        mString="V"+str(i+1)+"\n"
+        mString+=Step+" "
+        mString+=str(Values[i])+"\n"
+        f.write(mString)
+    for i in range(m):
+        mString = "I_Vsrc" + str(i+1) + "\n"
+        mString += Step + " "
+        mString += str(Values[i + n ]) + "\n"
+        f.write(mString)
+      #  f.write("%f \n",  Values[i + n - 1])
+    f.close()
 
 
 ComponentList = []
 TimeStamp = 0
-ComponentList, TimeStamp = ParsingFile("1.txt")
+FileNumber=0
+while 1:
+    g = raw_input("Enter File# : ")
+    if 4>= int(g) >0:
+        FileNumber=g
+        break
+    else:
+        print("Enter a Valid File#")
+ComponentList, TimeStamp = ParsingFile(FileNumber)
 n = 0  # representing Number of Nodes
 m = 0  # representing Number of ID voltage Source
 for mComponent in ComponentList:
-    n = max(int(mComponent.Node1[1]), int(mComponent.Node2[1]))+1  # To Get Number of Nodes
-    if mComponent.Type == "Vsrc":
+    n = max(n, int(mComponent.Node1[1]), int(mComponent.Node2[1]))  # To Get Number of Nodes
+    if mComponent.Type == "Vsrc":  # Count The No. of Voltage src
         m = m + 1
+# n = n + 1
+
+#                                   Mat A
 # INITIALIZING the Matrices
+print(n)
 G = np.zeros((n, n))  # for A resistance
 B = np.zeros((n, m))  # connection of the voltage sources
 C = np.zeros((m, n))  # Transpose of B
 D = np.zeros((m, m))  # is a zero matrix
-I = np.zeros((n,1))
-E = np.zeros(((m,1)))
-A = np.zeros((m+n,m+n))
-Z = np.zeros((n+m,1))
+# Calculting The Matrices Values:
 
-# print(G)
-# print(B)
-# print(C)
-# print(D)
-
-# Ctrl/ to comment multiple line selection
-
-def initmatb(matrixb):
-    #matrixb=np.array(matrixb)
-    #print(type(matrixb))
-    # Component_Type | Node1 | Node2 | Value | Initial_Value
-    # print(ComponentList)
-    for component in ComponentList:
-        if component.Type == "Vsrc":
-            for index, node in enumerate(matrixb):
-                #print(index)
-                pos=int(component.Node1[1])
-                neg=int(component.Node2[1])
-                if index == pos:
-                    matrixb[index][0] = 1
-                elif index == neg:
-                    matrixb[index][0] = -1
-                else:
-                    matrixb[index][0] = 0
-
-
-# initmatb(B)
-# print(B)
-
-def initmatg(matrixG):
-    for component in ComponentList:
-        if(component.Type == "R"):
-            node1 = int(component.Node1[1])
-            node2 = int(component.Node2[1])
-            matrixG[node1][node1]+=1/float(component.Value)
-            matrixG[node2][node2]+=1/float(component.Value)
-            matrixG[node1][node2]=-1/float(component.Value)
-            matrixG[node2][node1]=-1/float(component.Value)
-
-
-# initmatg(G)
-# print(G)
-
-def initmatc():
-    return  B.transpose()
-
-def initmate(matrixe):
-    for component in ComponentList:
-        if(component.Type == "Vsrc"):
-            volt=int(component.Value)
-            for index,node in enumerate(matrixe):
-                matrixe[index][0]=volt
-
-def initmati(matrixi):
-    for component in ComponentList:
-        if component.Type == "Isrc":
-            node1 = int(component.Node1[1])
-            node2 = int(component.Node2[1])
-            if(node1 !=0):
-                matrixi[node1][0]=float(component.Value)
-            if(node2 !=0):
-                matrixi[node2][0]=float(component.Value)
-
-def initmata(matrixa):
-        for i in range(n):
-           for j in range(n):
-               matrixa[i][j]=G[i][j]
-
-        for i in range(n):
-            for j in range(m):
-                matrixa[i][j+n]=B[i][j]
-
-        for i in range(m):
-            for j in range(n):
-                matrixa[i+n][j]=C[i][j]
-
-        for i in range(m):
-            for j in range(m):
-                matrixa[i+n][j+n]=D[i][j]
-def initmatz(matrixz):
-    for i in range(n+m):
-        iteri=0
-        itere=0
-        if i<n:
-            matrixz[i][0]=I[iteri][0]
-            iteri+=1
-        else:
-            matrixz[i][0]=E[itere][0]
-            itere+=1
-
-def calculatex():
-    print(A)
-    print(np.linalg.det(A))
-    # a=np.linalg.inv(np.matrix(A))
-    # print(a)
-    #return np.matmul(a,Z)
-
-initmatg(G)
-initmatb(B)
-C =initmatc()
-initmate(E)
-initmati(I)
-initmata(A)
-initmatz(Z)
-calculatex()
-# print(G)
-# print(B)
-# print(C)
-# print(D)
-# print(E)
-# print(I)
-# print(A)
-#print(Z)
-#print(X)
+initmatg(G, ComponentList)
+initmatb(B, ComponentList)
+C = initmatc(B)
+D = np.zeros((m, m))
+print("MatG:\n", G)
+print("MatB:\n", B)
+print("MatC:\n", C)
+print("MatD:\n", D)
+A = IniMatA(G, B, C, D)
+#                                 Mat X(Unknown)
+V = np.zeros((n, 1))  # hold the unknown voltages at each node
+J = np.zeros((m, 1))  # holds the unknown currents through the voltage sources.
+X = np.vstack((V, J))
+#                                  Mat Z
+I = np.zeros((n, 1))
+E = np.zeros((m, 1))
+initmate(E, ComponentList)
+initmati(I, ComponentList)
+Z = np.vstack((I, E))
+print("Z:", Z)
+# Solving The AX=Z
+print("MatA:", A, "\nMatZ", Z)
+# X = np.linalg.det(A)
+X = np.linalg.solve(A, Z)
+#print("nnnn:", X)
+WriteToFile(FileNumber, TimeStamp, X, n, m)
