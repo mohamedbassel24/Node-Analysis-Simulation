@@ -2,12 +2,13 @@ import numpy as np
 
 
 class Component:
-    def __init__(self, Type, Node1, Node2, Value, InitialValue):
+    def __init__(self, Type, Node1, Node2, Value, InitialValue, NumVoltageSource=0):
         self.Type = Type
         self.Node1 = Node1
         self.Node2 = Node2
         self.Value = Value
         self.InitialValue = InitialValue
+        self.mVoltageSrcNumber = NumVoltageSource
 
 
 def ParsingFile(FileName):
@@ -46,9 +47,7 @@ def initmatg(matrixG, ComponentList):
 def initmatb(matrixb, ComponentList):
     VolCounter = 0
     for component in ComponentList:
-        if component.Type == "Vsrc":
-            #       for index, node in enumerate(matrixb):
-            # print(index)
+        if component.Type == "Vsrc" or component.Type == "I":
             pos = int(component.Node1[1]) - 1
             neg = int(component.Node2[1]) - 1
             if pos >= 0:
@@ -68,14 +67,16 @@ def IniMatA(G, B, C, D):
     return np.vstack((UpperA, DownA))
 
 
-def initmate(matrixe, ComponentList):
+def initmate(matrixe, ComponentList, rStep):
     Index = 0
     for component in ComponentList:
         if component.Type == "Vsrc":
-            volt = int(component.Value)
-
-            # for index, node in enumerate(matrixe):
+            volt = float(component.Value)
             matrixe[Index][0] = volt
+            Index = Index + 1
+        elif component.Type == "I":
+            volt = float(component.Value)
+            matrixe[Index][0] = (float(component.Value) / rStep) * (float(component.InitialValue))
             Index = Index + 1
 
 
@@ -87,14 +88,14 @@ def initmati(matrixi, ComponentList, rTimeStamp):
             if node1 >= 0:
                 matrixi[node1][0] += float(component.Value)
             if node2 >= 0:
-                matrixi[node2][0] += float(component.Value)
+                matrixi[node2][0] += -1 * float(component.Value)
         elif component.Type == "C":
             node1 = int(component.Node1[1]) - 1
             node2 = int(component.Node2[1]) - 1
             if node1 >= 0:
                 matrixi[node1][0] += (float(component.Value) / rTimeStamp) * (float(component.InitialValue))
             if node2 >= 0:
-                matrixi[node2][0] += (float(component.Value) / rTimeStamp) * (float(component.InitialValue))
+                matrixi[node2][0] += -1 * ((float(component.Value) / rTimeStamp) * (float(component.InitialValue)))
 
 
 def WriteToFile(FileName, Step, List, n, m):
@@ -102,14 +103,14 @@ def WriteToFile(FileName, Step, List, n, m):
     for i in range(n):
         mString = "V" + str(i + 1) + "\n"
         for j in range(len(List)):
-            mString += str(float(Step) * (j + 1)) + " "
+            mString += str((float(Step) * (j + 1)))[0:3] + " "
             mString += str(List[j][i]) + "\n"
             f.write(mString)
             mString = ""
     for i in range(m):
         mString = "I_Vsrc" + str(i + 1) + "\n"
         for j in range(len(List)):
-            mString += str(float(Step) * (j + 1)) + " "
+            mString += str(float(Step) * (j + 1))[0:3] + " "
             mString += str(List[j][i + n]) + "\n"
             f.write(mString)
             mString = ""
@@ -121,7 +122,16 @@ def ConvertCap_Res(mList, rStep):
     """This Function Convert each capacitor into Resistance"""
     for mComp in mList:
         if mComp.Type == "C":
-            mList.append(Component("R", mComp.Node1, mComp.Node2, str( float(rStep)/float(mComp.Value) ), "0"))
+            mList.append(Component("R", mComp.Node1, mComp.Node2, str(float(rStep) / float(mComp.Value)), "0"))
+
+    return mList
+
+
+def ConvertInd_Res(mList, rStep):
+    """This Function Convert each capacitor into Resistance"""
+    for mComp in mList:
+        if mComp.Type == "I":  # NOT G
+            mList.append(Component("R", mComp.Node1, mComp.Node2, str(float(mComp.Value) / float(rStep)), "0"))
 
     return mList
 
@@ -147,6 +157,15 @@ def UpdateCInitalValue(mList, X):
     return
 
 
+def UpdateIInitalValue(mList, X):
+    """This Function Updates the Value of Inductor """
+    for i in range(len(mList)):
+        if mList[i].Type == "I":
+            mList[i].InitialValue = float(X[int(mList[i].mVoltageSrcNumber)])
+
+    return
+
+
 ComponentList = []
 TimeStamp = 0
 FileNumber = 0
@@ -162,21 +181,27 @@ while 1:
 ComponentList, TimeStamp, NumberOfIterations = ParsingFile(FileNumber)
 n = 0  # representing Number of Nodes
 m = 0  # representing Number of ID voltage Source
+m = 0  # representing Number of ID voltage Source
 
 for mComponent in ComponentList:
     n = max(n, int(mComponent.Node1[1]), int(mComponent.Node2[1]))  # To Get Number of Nodes
     if mComponent.Type == "Vsrc":  # Count The No. of Voltage src
         m = m + 1
+    elif mComponent.Type == "I":
+        m = m + 1
+        mComponent.mVoltageSrcNumber = m - 1
 
 #                                   Mat A
 # INITIALIZING the Matrices
 ComponentList = ConvertCap_Res(ComponentList, TimeStamp)
+ComponentList = ConvertInd_Res(ComponentList, TimeStamp)
 G = np.zeros((n, n))  # for A resistance
 B = np.zeros((n, m))  # connection of the voltage sources
 C = np.zeros((m, n))  # Transpose of B
 D = np.zeros((m, m))  # is a zero matrix
 # Calculting The Matrices Values:
-
+D[0, 0] = -1 / float(TimeStamp)
+D[1, 1] = -1 / float(TimeStamp)
 initmatg(G, ComponentList)
 initmatb(B, ComponentList)
 C = initmatc(B)
@@ -196,17 +221,17 @@ mList = []
 TimeStamp = float(TimeStamp)
 NumberOfIterations = int(NumberOfIterations)
 ActualTime = TimeStamp
-I = np.zeros((n, 1))
+
 while ActualTime <= (NumberOfIterations * TimeStamp):
-    E = np.zeros((m, 1))
-    initmate(E, ComponentList)
     I = np.zeros((n, 1))
+    E = np.zeros((m, 1))
+    initmate(E, ComponentList, TimeStamp)
     initmati(I, ComponentList, TimeStamp)
     Z = np.vstack((I, E))
-
     X = np.linalg.solve(A, Z)
     mList.append(X)
     UpdateCInitalValue(ComponentList, X)
+    UpdateIInitalValue(ComponentList, X[n:])
     ActualTime += TimeStamp
 
 WriteToFile(FileNumber, TimeStamp, mList, n, m)
