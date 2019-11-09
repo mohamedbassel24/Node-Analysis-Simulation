@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class Component:
@@ -63,8 +64,14 @@ def initmatc(B):
 
 def IniMatA(G, B, C, D):
     UpperA = np.hstack((G, B))
-    DownA = np.hstack((C, D))
+    DownA = np.hstack((C, D))8
     return np.vstack((UpperA, DownA))
+
+
+def IniMatD(ComponentList, D, rStep):
+    for component in ComponentList:
+        if component.Type == "I":
+            D[component.mVoltageSrcNumber, component.mVoltageSrcNumber] += -1 * float(component.Value) / rStep
 
 
 def initmate(matrixe, ComponentList, rStep):
@@ -76,7 +83,7 @@ def initmate(matrixe, ComponentList, rStep):
             Index = Index + 1
         elif component.Type == "I":
             volt = float(component.Value)
-            matrixe[Index][0] = (float(component.Value) / rStep) * (float(component.InitialValue))
+            matrixe[Index][0] += -1 * (float(component.Value) / rStep) * (float(component.InitialValue))
             Index = Index + 1
 
 
@@ -166,6 +173,24 @@ def UpdateIInitalValue(mList, X):
     return
 
 
+def MakeCList(mCMatrix, ComponentList, CurrentStepCounter):
+    i = 0
+    for mComp in ComponentList:
+        if mComp.Type == "C":
+            mCMatrix[i][CurrentStepCounter] = mComp.InitialValue
+            i = i + 1
+    return
+
+
+def MakeIList(mIMatrix, ComponentList, CurrentStepCounter):
+    i = 0
+    for mComp in ComponentList:
+        if mComp.Type == "I":
+            mIMatrix[i][CurrentStepCounter] = mComp.InitialValue
+            i = i + 1
+    return
+
+
 ComponentList = []
 TimeStamp = 0
 FileNumber = 0
@@ -194,18 +219,16 @@ for mComponent in ComponentList:
 #                                   Mat A
 # INITIALIZING the Matrices
 ComponentList = ConvertCap_Res(ComponentList, TimeStamp)
-ComponentList = ConvertInd_Res(ComponentList, TimeStamp)
+# ComponentList = ConvertInd_Res(ComponentList, TimeStamp)
 G = np.zeros((n, n))  # for A resistance
 B = np.zeros((n, m))  # connection of the voltage sources
 C = np.zeros((m, n))  # Transpose of B
 D = np.zeros((m, m))  # is a zero matrix
 # Calculting The Matrices Values:
-D[0, 0] = -1 / float(TimeStamp)
-D[1, 1] = -1 / float(TimeStamp)
 initmatg(G, ComponentList)
 initmatb(B, ComponentList)
 C = initmatc(B)
-D = np.zeros((m, m))
+IniMatD(ComponentList, D, float(TimeStamp))  # new logic for dependent voltage source due to inductance
 # print("MatG:\n", G)
 # print("MatB:\n", B)
 # print("MatC:\n", C)
@@ -221,7 +244,18 @@ mList = []
 TimeStamp = float(TimeStamp)
 NumberOfIterations = int(NumberOfIterations)
 ActualTime = TimeStamp
+capCount = 0
+indCount = 0
+for x in ComponentList:
+    if x.Type == "C":
+        capCount += 1
+    if x.Type == "I":
+        indCount += 1
 
+StepList = []
+CapList = np.zeros((capCount, NumberOfIterations))
+IndList = np.zeros((indCount, NumberOfIterations))
+CounterIteration = 0
 while ActualTime <= (NumberOfIterations * TimeStamp):
     I = np.zeros((n, 1))
     E = np.zeros((m, 1))
@@ -230,8 +264,22 @@ while ActualTime <= (NumberOfIterations * TimeStamp):
     Z = np.vstack((I, E))
     X = np.linalg.solve(A, Z)
     mList.append(X)
-    UpdateCInitalValue(ComponentList, X)
-    UpdateIInitalValue(ComponentList, X[n:])
+    UpdateCInitalValue(ComponentList, X)  # Updating Capacitors Values I[t+1]=I[t]
+    UpdateIInitalValue(ComponentList, X[n:])  # Updating Capacitors Values V[t+1]=V[t] & take only Voltage values
+    # Plot Purposes
+    StepList.append(ActualTime)
+    MakeCList(CapList, ComponentList, CounterIteration)
+    MakeIList(IndList, ComponentList, CounterIteration)
+    CounterIteration = CounterIteration + 1
+    #Incremting Step
     ActualTime += TimeStamp
-
+    ActualTime = float(str(ActualTime)[:4])  # Ignore .000001 (take only first 2 digit after . )
 WriteToFile(FileNumber, TimeStamp, mList, n, m)
+# PLOTING => Capcitors
+for i in range(capCount):
+    plt.plot(StepList, CapList[i])
+    plt.show()
+# PLOTING => Inductorss
+for i in range(indCount):
+    plt.plot(StepList, IndList[i])
+    plt.show()
